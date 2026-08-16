@@ -32,8 +32,6 @@ import queue as pyqueue
 from pathlib import Path
 from datetime import datetime, date
 
-import cv2
-import numpy as np
 import streamlit as st
 import streamlit.components.v1 as components
 from PIL import Image
@@ -45,6 +43,11 @@ try:
     from excel_export import generate_workbook
 except Exception:
     generate_workbook = None
+
+# Set CLOUD_DEPLOY=true only in Streamlit Cloud Secrets (never in local .env).
+# This machine has no route to the classroom RTSP camera, so the Live Camera
+# Scan page and its subprocess are hidden here instead of failing silently.
+IS_CLOUD = os.environ.get("CLOUD_DEPLOY", "").strip().lower() == "true"
 
 
 # =====================================================================
@@ -383,7 +386,7 @@ CAMERA_SERVICE = get_camera_service()
 # Streamlit fragment/run_every is used because this Windows environment has a
 # blocked pandas native DLL; the live camera itself is updated continuously by
 # the browser-native MJPEG stream.
-CAMERA = CAMERA_SERVICE.status()
+CAMERA = {} if IS_CLOUD else CAMERA_SERVICE.status()
 
 
 def start_camera(url):
@@ -428,11 +431,15 @@ if current_user["role"] == "teacher":
         ("Attendance %", "▣  Attendance %"),
         ("Self-Enroll", "◈  Self-Enroll"),
         ("Manage Students", "⚙  Manage Students"),
-        ("Live Camera Scan", "◎  Live Camera Scan"),
         ("Class Schedule", "▦  Class Schedule"),
         ("Period Reports", "◫  Period Reports"),
         ("Export", "⬇  Download Excel"),
     ]
+    if not IS_CLOUD:
+        # Live camera control only makes sense on the machine with a route
+        # to the classroom RTSP feed. Inserted after "Manage Students" to
+        # keep local page order identical to before.
+        PAGES.insert(5, ("Live Camera Scan", "◎  Live Camera Scan"))
 else:
     PAGES = [("My Attendance", "◉  My Attendance")]
 
@@ -572,6 +579,14 @@ elif page == "Attendance %":
 
 elif page == "Self-Enroll":
     dot_header("Self-Enroll", "Consent required before biometric data is stored")
+    if IS_CLOUD:
+        st.warning(
+            "Face enrollment requires the local recognition engine and is not "
+            "available on this cloud dashboard. Enroll students from the app "
+            "running on the classroom machine instead — new enrollments will "
+            "appear here automatically since both share the same database."
+        )
+        st.stop()
     st.write("Create a student record, capture a face encoding, and create the student login in one step.")
 
     with st.form("enroll_form"):
