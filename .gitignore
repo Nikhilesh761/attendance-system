@@ -1,0 +1,22 @@
+venv/
+conda/
+*.zip
+*.xlsx
+*.txt
+*.bat
+*_backup*.py
+*_BACKUP*.py
+*backup*.py
+*.py.py
+app_web (*).py
+app_web(*).py
+attendance_log.txt
+.firebase/
+.firebaserc
+firebase.json
+public/
+static/
+active
+frozen
+.env
+attendance.db
